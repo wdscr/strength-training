@@ -53,6 +53,7 @@ function PresetPanel() {
   const [entries, setEntries] = useState<PresetEntry[]>([])
   const [values, setValues] = useState<Record<string, string>>({})
   const [loaded, setLoaded] = useState(false)
+  const [pickingKey, setPickingKey] = useState<string | null>(null)
 
   useEffect(() => {
     const all: PresetEntry[] = []
@@ -100,7 +101,7 @@ function PresetPanel() {
           <div className="space-y-2">
             {grouped[lift].map((entry) => {
               const options = EXERCISE_OPTIONS[entry.exerciseName]
-              const [picking, setPicking] = useState(false)
+              const isPicking = pickingKey === entry.compoundKey
 
               return (
                 <div key={entry.compoundKey} className="flex items-center justify-between bg-slate-800 rounded-lg px-4 py-3">
@@ -109,15 +110,15 @@ function PresetPanel() {
                       <p className="text-sm text-white">{entry.exerciseName}</p>
                       {options && (
                         <button
-                          onClick={() => setPicking(!picking)}
+                          onClick={() => setPickingKey(isPicking ? null : entry.compoundKey)}
                           className="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 rounded"
                         >
-                          {picking ? '收起' : '选取'}
+                          {isPicking ? '收起' : '选取'}
                         </button>
                       )}
                     </div>
                     <p className="text-xs text-slate-500">{entry.weightLabel}</p>
-                    {picking && options && (
+                    {isPicking && options && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {options.map(opt => (
                           <button
@@ -127,15 +128,11 @@ function PresetPanel() {
                               const oldKey = entry.compoundKey
                               const newKey = `${entry.lift}:${opt}:${entry.weightLabel}`
                               const oldVal = values[oldKey]
-                              if (oldVal) {
-                                setMemory(newKey, parseFloat(oldVal))
-                              }
-                              // Store the pick mapping in localStorage
+                              if (oldVal) setMemory(newKey, parseFloat(oldVal))
                               localStorage.setItem(`_pick:${entry.lift}:${entry.exerciseName}`, opt)
-                              // Update display
                               entry.exerciseName = opt
                               entry.compoundKey = newKey
-                              setPicking(false)
+                              setPickingKey(null)
                               setValues({ ...values })
                             }}
                           >
