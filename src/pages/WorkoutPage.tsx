@@ -213,7 +213,7 @@ export default function WorkoutPage() {
   const { lift } = useParams<{ lift: string }>()
   const navigate = useNavigate()
   const { settings, loaded: settingsLoaded } = useSettings()
-  const { states, loaded: statesLoaded, advanceProgram } = useProgramState()
+  const { states, loaded: statesLoaded, advanceProgram, markVisited } = useProgramState()
   const { getMemoryForExercise } = useWeightMemory()
 
   const liftKey = lift as Lift
@@ -250,6 +250,13 @@ export default function WorkoutPage() {
     }
     load()
   }, [day, liftKey, getMemoryForExercise, memoriesLoaded])
+
+  // Mark this (week, day) as visited
+  useEffect(() => {
+    if (statesLoaded && liftKey && state && !state.completed) {
+      markVisited(liftKey)
+    }
+  }, [statesLoaded, liftKey, state, markVisited])
 
   // Reset state when lift changes
   useEffect(() => {
@@ -389,7 +396,7 @@ export default function WorkoutPage() {
               className="bg-slate-800 rounded-xl p-4 border border-slate-700"
             >
               <h3 className="font-semibold text-white mb-3">
-                {ex.name}
+                {localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name}
               </h3>
 
               {/* Weight */}

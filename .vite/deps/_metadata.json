@@ -1,0 +1,48 @@
+{
+  "hash": "fc0cefec",
+  "configHash": "98805bb9",
+  "lockfileHash": "d0aeb103",
+  "browserHash": "78b3f16a",
+  "optimized": {
+    "idb": {
+      "src": "../../node_modules/idb/build/index.js",
+      "file": "idb.js",
+      "fileHash": "5bd1cc38",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "11df33ba",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "158e2fa1",
+      "needsInterop": false
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "81e7acbb",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "456ab385",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "react-dom-BSHrnSDf": {
+      "file": "react-dom-BSHrnSDf.js",
+      "isDynamicEntry": false
+    },
+    "rolldown-runtime-FDOR9p9I": {
+      "file": "rolldown-runtime-FDOR9p9I.js",
+      "isDynamicEntry": false
+    }
+  }
+}

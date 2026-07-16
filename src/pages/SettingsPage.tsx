@@ -7,6 +7,17 @@ import { weightLabel } from '../utils/weight'
 import { LIFT_LABELS, LIFTS } from '../types'
 import type { Lift, Program } from '../types'
 
+// Exercise category pick options
+const EXERCISE_OPTIONS: Record<string, string[]> = {
+  '肱三头肌臂屈伸': ['绳索下压', '窄距卧推', '哑铃颈后臂屈伸', '双杠臂屈伸', 'EZ杆臂屈伸', '其他'],
+  '弯举/引体向上/高位下拉': ['哑铃弯举', '杠铃弯举', '锤式弯举', '引体向上', '高位下拉', '其他'],
+  '哑铃推举/飞鸟/臂屈伸/蝴蝶机': ['哑铃推举', '哑铃飞鸟', '双杠臂屈伸', '蝴蝶机夹胸', '其他'],
+  '股四头肌辅助动作（腿举/负重登阶/负重弓步蹲/哈克深蹲等）': ['腿举', '负重登阶', '负重弓步蹲', '哈克深蹲', '腿屈伸', '其他'],
+  '臀推/臀桥': ['杠铃臀推', '哑铃臀推', '单腿臀桥', '其他'],
+  '划船': ['杠铃划船', '哑铃划船', 'T杆划船', '潘德勒划船', '其他'],
+  '耸肩': ['杠铃耸肩', '哑铃耸肩', '六角杠耸肩', '其他'],
+}
+
 type PresetEntry = {
   lift: Lift
   exerciseName: string
@@ -87,27 +98,69 @@ function PresetPanel() {
         <div key={lift} className="mb-4">
           <h3 className="text-sm font-medium text-slate-300 mb-2">{LIFT_LABELS[lift]}</h3>
           <div className="space-y-2">
-            {grouped[lift].map((entry) => (
-              <div key={entry.compoundKey} className="flex items-center justify-between bg-slate-800 rounded-lg px-4 py-3">
-                <div className="flex-1 mr-3">
-                  <p className="text-sm text-white">{entry.exerciseName}</p>
-                  <p className="text-xs text-slate-500">{entry.weightLabel}</p>
+            {grouped[lift].map((entry) => {
+              const options = EXERCISE_OPTIONS[entry.exerciseName]
+              const [picking, setPicking] = useState(false)
+
+              return (
+                <div key={entry.compoundKey} className="flex items-center justify-between bg-slate-800 rounded-lg px-4 py-3">
+                  <div className="flex-1 mr-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-white">{entry.exerciseName}</p>
+                      {options && (
+                        <button
+                          onClick={() => setPicking(!picking)}
+                          className="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 rounded"
+                        >
+                          {picking ? '收起' : '选取'}
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500">{entry.weightLabel}</p>
+                    {picking && options && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {options.map(opt => (
+                          <button
+                            key={opt}
+                            className="text-xs px-2 py-1 bg-slate-700 text-slate-300 rounded hover:bg-slate-600"
+                            onClick={() => {
+                              const oldKey = entry.compoundKey
+                              const newKey = `${entry.lift}:${opt}:${entry.weightLabel}`
+                              const oldVal = values[oldKey]
+                              if (oldVal) {
+                                setMemory(newKey, parseFloat(oldVal))
+                              }
+                              // Store the pick mapping in localStorage
+                              localStorage.setItem(`_pick:${entry.lift}:${entry.exerciseName}`, opt)
+                              // Update display
+                              entry.exerciseName = opt
+                              entry.compoundKey = newKey
+                              setPicking(false)
+                              setValues({ ...values })
+                            }}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={values[entry.compoundKey] ?? ''}
+                    placeholder="___"
+                    onChange={(e) => {
+                      const newVals = { ...values, [entry.compoundKey]: e.target.value }
+                      setValues(newVals)
+                      const v = parseFloat(e.target.value)
+                      if (v > 0) setMemory(entry.compoundKey, v)
+                    }}
+                    className="w-20 bg-slate-700 text-white rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
                 </div>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={values[entry.compoundKey] ?? ''}
-                  placeholder="___"
-                  onChange={(e) => {
-                    const newVals = { ...values, [entry.compoundKey]: e.target.value }
-                    setValues(newVals)
-                    const v = parseFloat(e.target.value)
-                    if (v > 0) setMemory(entry.compoundKey, v)
-                  }}
-                  className="w-20 bg-slate-700 text-white rounded px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       ))}

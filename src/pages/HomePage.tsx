@@ -16,6 +16,8 @@ function LiftCard({
 }) {
   const navigate = useNavigate()
   const program = state ? getProgramById(state.programId) : undefined
+  const currentKey = state ? `${state.currentWeek}-${state.currentDay}` : ''
+  const isVisited = state?.visited.includes(currentKey)
 
   return (
     <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
@@ -49,12 +51,26 @@ function LiftCard({
               W{state.currentWeek} · D{state.currentDay}
             </span>
           </div>
+
+          {/* Status badges */}
+          {isVisited && (
+            <div className="mb-3">
+              <span className="inline-block bg-slate-600/50 text-slate-400 text-xs px-3 py-1 rounded-full">
+                已访问 · 未完成
+              </span>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={() => navigate(`/workout/${lift}`)}
-              className="flex-1 bg-amber-400 text-slate-900 font-bold py-3 rounded-lg text-sm hover:bg-amber-300 active:scale-95 transition-all"
+              className={`flex-1 font-bold py-3 rounded-lg text-sm active:scale-95 transition-all ${
+                isVisited
+                  ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  : 'bg-amber-400 text-slate-900 hover:bg-amber-300'
+              }`}
             >
-              开始训练
+              {isVisited ? '继续训练' : '开始训练'}
             </button>
             <button
               onClick={onSelectProgram}

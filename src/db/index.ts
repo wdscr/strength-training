@@ -72,6 +72,20 @@ export async function addTrainingLog(entry: TrainingLogEntry): Promise<void> {
   await db.add('trainingLog', entry);
 }
 
+export async function deleteTrainingLog(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('trainingLog', id);
+}
+
+export async function deleteTrainingLogs(ids: string[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('trainingLog', 'readwrite');
+  for (const id of ids) {
+    await tx.store.delete(id);
+  }
+  await tx.done;
+}
+
 export async function getTrainingLogs(lift?: Lift): Promise<TrainingLogEntry[]> {
   const db = await getDB();
   if (lift) {

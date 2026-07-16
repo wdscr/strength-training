@@ -68,6 +68,7 @@ export interface ProgramState {
   currentWeek: number;  // 1-based, 0 = not started
   currentDay: number;   // 1-based within the week
   completed: boolean;
+  visited: string[];    // Array of "week-day" pairs that have been opened
 }
 
 // ---- User Settings ----
