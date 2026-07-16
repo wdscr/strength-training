@@ -24,6 +24,8 @@ function collectPresets(program: Program | undefined): PresetEntry[] {
       for (const ex of day.exercises) {
         if (ex.weight.type === 'rm' || ex.weight.type === 'placeholder' || ex.weight.type === 'rpe') {
           const label = weightLabel(ex.weight)
+          // Skip "自选" entries — those are picked dynamically in the workout page
+          if (label === '自选') continue
           const compoundKey = `${program.lift}:${ex.name}:${label}`
           if (!seen.has(compoundKey)) {
             seen.add(compoundKey)

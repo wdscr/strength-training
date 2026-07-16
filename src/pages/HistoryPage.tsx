@@ -75,7 +75,7 @@ function HistoryEntry({
               <div key={i} className="py-3">
                 <p className="text-sm font-medium text-white">{ex.name}</p>
                 <div className="flex gap-4 mt-1 text-xs text-slate-400">
-                  <span>{ex.actualWeight} kg</span>
+                  <span>{ex.actualWeight > 0 ? `${ex.actualWeight} kg` : '-'}</span>
                   <span>{ex.completedSets}/{ex.plannedSets} 组</span>
                   <span>{repsLabel(ex.plannedReps)}</span>
                   {ex.actualReps && <span className="text-amber-400">实际: {ex.actualReps} reps</span>}

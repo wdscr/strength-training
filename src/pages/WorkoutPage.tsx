@@ -216,12 +216,8 @@ function WeightDisplay({
     )
   }
 
-  // No weight set yet — show placeholder with label, click to override
-  return (
-    <div onClick={() => { setOverrideVal(''); setOverriding(true) }} className="cursor-pointer">
-      <span className="text-lg text-slate-500">{label} · ___ kg</span>
-    </div>
-  )
+  // No weight set — show nothing (don't display "0 kg" or "___ kg")
+  return null
 }
 
 function ExerciseNamePicker({ liftKey, category, currentName }: { liftKey: string; category: string; currentName: string }) {
@@ -471,19 +467,28 @@ export default function WorkoutPage() {
 
       {/* Exercises */}
       <div className="space-y-4">
-        {day.exercises.map((ex, exerciseIdx) => (
+        {day.exercises.map((ex, exerciseIdx) => {
+          const pickedName = localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name
+          return (
             <div
               key={exerciseIdx}
               className="bg-slate-800 rounded-xl p-4 border border-slate-700"
             >
               <h3 className="font-semibold text-white mb-3">
-                {ex.name}
+                {pickedName}
                 {EXERCISE_OPTIONS[ex.name] && (
-                  <ExerciseNamePicker
-                    liftKey={liftKey}
-                    category={ex.name}
-                    currentName={localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name}
-                  />
+                  <>
+                    {pickedName === ex.name ? (
+                      <span className="text-xs text-slate-500 ml-1">({EXERCISE_OPTIONS[ex.name].join('/')})</span>
+                    ) : (
+                      <span className="text-xs text-amber-400 ml-1">({pickedName})</span>
+                    )}
+                    <ExerciseNamePicker
+                      liftKey={liftKey}
+                      category={ex.name}
+                      currentName={pickedName}
+                    />
+                  </>
                 )}
               </h3>
 
@@ -524,7 +529,8 @@ export default function WorkoutPage() {
                 <p className="text-xs text-slate-500 mt-3 leading-relaxed">{ex.notes}</p>
               )}
             </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Complete Button */}
