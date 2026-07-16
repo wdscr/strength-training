@@ -69,23 +69,12 @@ export function useProgramState(_lift?: Lift) {
     setStates((prev) => ({ ...prev, [l]: nextState }));
   }, [states]);
 
-  const markVisited = useCallback(async (l: Lift) => {
-    const current = states[l];
-    if (!current) return;
-    const key = `${current.currentWeek}-${current.currentDay}`;
-    if (current.visited.includes(key)) return;
-    const next = { ...current, visited: [...current.visited, key] };
-    await saveProgramState(next);
-    setStates((prev) => ({ ...prev, [l]: next }));
-  }, [states]);
-
   return {
     states,
     loaded,
     getProgramForLift,
     setProgram,
     advanceProgram,
-    markVisited,
     reload: loadAll,
   };
 }

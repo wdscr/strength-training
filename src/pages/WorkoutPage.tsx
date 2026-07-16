@@ -9,6 +9,21 @@ import { addTrainingLog } from '../db'
 import { LIFT_LABELS } from '../types'
 import type { WeightSpec, ExerciseLog, Lift } from '../types'
 
+const EXERCISE_OPTIONS: Record<string, string[]> = {
+  '肱三头肌臂屈伸': ['绳索下压', '窄距卧推', '哑铃颈后臂屈伸', '双杠臂屈伸', 'EZ杆臂屈伸', '其他'],
+  '弯举/引体向上/高位下拉': ['哑铃弯举', '杠铃弯举', '锤式弯举', '引体向上', '高位下拉', '其他'],
+  '哑铃推举/飞鸟/臂屈伸/蝴蝶机': ['哑铃推举', '哑铃飞鸟', '双杠臂屈伸', '蝴蝶机夹胸', '其他'],
+  '股四头肌辅助动作（腿举/负重登阶/负重弓步蹲/哈克深蹲等）': ['腿举', '负重登阶', '负重弓步蹲', '哈克深蹲', '腿屈伸', '其他'],
+  '臀推/臀桥': ['杠铃臀推', '哑铃臀推', '单腿臀桥', '其他'],
+  '划船': ['杠铃划船', '哑铃划船', 'T杆划船', '潘德勒划船', '其他'],
+  '耸肩': ['杠铃耸肩', '哑铃耸肩', '六角杠耸肩', '其他'],
+}
+
+// Build a storage key for saving/restoring workout state
+function saveKey(lift: string, programId: string, week: number, day: number, suffix: string) {
+  return `wk:${lift}:${programId}:${week}:${day}:${suffix}`
+}
+
 function RestTimer({ defaultSeconds }: { defaultSeconds: number }) {
   const [seconds, setSeconds] = useState(defaultSeconds)
   const [running, setRunning] = useState(false)
@@ -209,11 +224,51 @@ function WeightDisplay({
   )
 }
 
+function ExerciseNamePicker({ liftKey, category, currentName }: { liftKey: string; category: string; currentName: string }) {
+  const [open, setOpen] = useState(false)
+  const options = EXERCISE_OPTIONS[category]
+  if (!options) return null
+
+  return (
+    <>
+      <button onClick={() => setOpen(!open)} className="text-xs ml-2 px-2 py-0.5 bg-slate-700 text-slate-400 rounded align-middle">
+        选取
+      </button>
+      {open && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={() => setOpen(false)}>
+          <div className="bg-slate-800 rounded-t-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4">选择具体动作</h3>
+            <p className="text-sm text-slate-400 mb-3">当前: {currentName}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {options.map(opt => (
+                <button
+                  key={opt}
+                  className={`p-3 rounded-lg text-sm font-medium ${
+                    currentName === opt ? 'bg-amber-400 text-slate-900' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                  onClick={() => {
+                    localStorage.setItem(`_pick:${liftKey}:${category}`, opt)
+                    // Force re-render: close picker
+                    setOpen(false)
+                    window.location.reload()
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function WorkoutPage() {
   const { lift } = useParams<{ lift: string }>()
   const navigate = useNavigate()
   const { settings, loaded: settingsLoaded } = useSettings()
-  const { states, loaded: statesLoaded, advanceProgram, markVisited } = useProgramState()
+  const { states, loaded: statesLoaded, advanceProgram } = useProgramState()
   const { getMemoryForExercise } = useWeightMemory()
 
   const liftKey = lift as Lift
@@ -223,12 +278,31 @@ export default function WorkoutPage() {
   const day = week?.days.find((d) => d.dayNumber === state?.currentDay)
   const oneRM = getOneRM(settings, liftKey)
 
-  // Track completed sets per exercise: exerciseIndex -> Set<setIndex>
-  const [completedSets, setCompletedSets] = useState<Map<number, Set<number>>>(new Map())
-  // Track current weight values for memory-enabled exercises
-  const [weightValues, setWeightValues] = useState<Map<number, number>>(new Map())
-  // Track AMAP rep counts per exercise
-  const [amapReps, setAmapReps] = useState<Map<number, number>>(new Map())
+  const sk = (s: string) => saveKey(liftKey, program?.id || '', state?.currentWeek || 0, state?.currentDay || 0, s)
+
+  // Restore saved workout state from localStorage (auto-save between sessions)
+  const restoreState = <T,>(key: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(key)
+      return raw ? JSON.parse(raw) : fallback
+    } catch { return fallback }
+  }
+
+  // Track completed sets, weights, AMAP — restored from localStorage
+  const [completedSets, setCompletedSets] = useState<Map<number, Set<number>>>(() => {
+    const raw = restoreState<[number, number[]][]>(sk('sets'), [])
+    const m = new Map<number, Set<number>>()
+    for (const [k, v] of raw) m.set(k, new Set(v))
+    return m
+  })
+  const [weightValues, setWeightValues] = useState<Map<number, number>>(() => {
+    const raw = restoreState<[number, number][]>(sk('weights'), [])
+    return new Map(raw)
+  })
+  const [amapReps, setAmapReps] = useState<Map<number, number>>(() => {
+    const raw = restoreState<[number, number][]>(sk('amap'), [])
+    return new Map(raw)
+  })
   // Loaded weight memories
   const [memoriesLoaded, setMemoriesLoaded] = useState(false)
 
@@ -251,14 +325,17 @@ export default function WorkoutPage() {
     load()
   }, [day, liftKey, getMemoryForExercise, memoriesLoaded])
 
-  // Mark this (week, day) as visited
+  // Auto-save workout state to localStorage whenever it changes
   useEffect(() => {
-    if (statesLoaded && liftKey && state && !state.completed) {
-      markVisited(liftKey)
-    }
-  }, [statesLoaded, liftKey, state, markVisited])
+    if (!state || !program) return
+    const setsArr: [number, number[]][] = []
+    completedSets.forEach((s, k) => setsArr.push([k, [...s]]))
+    localStorage.setItem(sk('sets'), JSON.stringify(setsArr))
+    localStorage.setItem(sk('weights'), JSON.stringify([...weightValues]))
+    localStorage.setItem(sk('amap'), JSON.stringify([...amapReps]))
+  }, [completedSets, weightValues, amapReps, state, program])
 
-  // Reset state when lift changes
+  // Reset state when lift changes — also clear auto-save
   useEffect(() => {
     setCompletedSets(new Map())
     setWeightValues(new Map())
@@ -336,6 +413,10 @@ export default function WorkoutPage() {
   }
 
   const handleComplete = async () => {
+    // Clear auto-save after completion
+    localStorage.removeItem(sk('sets'))
+    localStorage.removeItem(sk('weights'))
+    localStorage.removeItem(sk('amap'))
     const exerciseLogs: ExerciseLog[] = day.exercises.map((ex, i) => {
       const actualWeight = inheritedWeights.get(i) ?? weightValues.get(i) ?? calcWeight(ex.weight, oneRM, settings.rounding) ?? 0
       const setsCompleted = completedSets.get(i)?.size ?? 0
@@ -396,7 +477,14 @@ export default function WorkoutPage() {
               className="bg-slate-800 rounded-xl p-4 border border-slate-700"
             >
               <h3 className="font-semibold text-white mb-3">
-                {localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name}
+                {ex.name}
+                {EXERCISE_OPTIONS[ex.name] && (
+                  <ExerciseNamePicker
+                    liftKey={liftKey}
+                    category={ex.name}
+                    currentName={localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name}
+                  />
+                )}
               </h3>
 
               {/* Weight */}
