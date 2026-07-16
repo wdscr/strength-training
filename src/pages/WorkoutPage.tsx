@@ -477,18 +477,11 @@ export default function WorkoutPage() {
               <h3 className="font-semibold text-white mb-3">
                 {pickedName}
                 {EXERCISE_OPTIONS[ex.name] && (
-                  <>
-                    {pickedName === ex.name ? (
-                      <span className="text-xs text-slate-500 ml-1">({EXERCISE_OPTIONS[ex.name].join('/')})</span>
-                    ) : (
-                      <span className="text-xs text-amber-400 ml-1">({pickedName})</span>
-                    )}
-                    <ExerciseNamePicker
-                      liftKey={liftKey}
-                      category={ex.name}
-                      currentName={pickedName}
-                    />
-                  </>
+                  <ExerciseNamePicker
+                    liftKey={liftKey}
+                    category={ex.name}
+                    currentName={pickedName}
+                  />
                 )}
               </h3>
 
