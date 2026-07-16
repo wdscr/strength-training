@@ -25,13 +25,13 @@ function collectPresets(program: Program | undefined): PresetEntry[] {
       for (const ex of day.exercises) {
         if (ex.weight.type === 'rm' || ex.weight.type === 'placeholder' || ex.weight.type === 'rpe') {
           const label = weightLabel(ex.weight)
-          // Skip "自选" entries — picked dynamically in the workout page
-          if (label === '自选') continue
           // Split compound names by "/" into individual items.
           // Handles both "弯举/引体向上/高位下拉" and "股四头肌辅助动作（腿举/登阶/弓步蹲...）"
           const parts = ex.name.split('/').map(s => s.trim())
-          // Filter out parentheses residue: keep only standalone names, not prefix text before "（"
+          // Filter out parentheses residue: keep only standalone names
           const names = parts.filter(p => !p.includes('（') && !p.includes('）') && !p.endsWith('等'))
+          // If splitting produced nothing usable, keep the original name
+          if (names.length === 0) names.push(ex.name)
           for (const name of names) {
             const compoundKey = `${program.lift}:${name}:${label}`
             if (!seen.has(compoundKey)) {
