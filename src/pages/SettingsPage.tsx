@@ -27,8 +27,11 @@ function collectPresets(program: Program | undefined): PresetEntry[] {
           const label = weightLabel(ex.weight)
           // Skip "自选" entries — picked dynamically in the workout page
           if (label === '自选') continue
-          // Split compound names like "弯举/引体向上/高位下拉" into individual items
-          const names = ex.name.split('/').map(s => s.trim())
+          // Split compound names like "弯举/引体向上/高位下拉" into individual items.
+          // Only split when there's no Chinese parentheses (those are descriptive/specification context)
+          const names = ex.name.includes('（') && ex.name.includes('）')
+            ? [ex.name]
+            : ex.name.split('/').map(s => s.trim())
           for (const name of names) {
             const compoundKey = `${program.lift}:${name}:${label}`
             if (!seen.has(compoundKey)) {
