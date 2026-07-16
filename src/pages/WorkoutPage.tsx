@@ -418,7 +418,7 @@ export default function WorkoutPage() {
       const setsCompleted = completedSets.get(i)?.size ?? 0
       const amapVal = amapReps.get(i)
       return {
-        name: ex.name,
+        name: localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name,
         plannedWeight: ex.weight,
         actualWeight,
         plannedSets: ex.sets,

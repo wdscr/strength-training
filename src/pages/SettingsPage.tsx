@@ -14,7 +14,8 @@ type PresetEntry = {
   compoundKey: string
 }
 
-/** Collect all unique (exerciseName, weightLabel) pairs from a program for presetting */
+/** Collect all unique (exerciseName, weightLabel) pairs from a program for presetting.
+ *  Compound names "弯举/引体向上/高位下拉" are split into individual items. */
 function collectPresets(program: Program | undefined): PresetEntry[] {
   if (!program) return []
   const seen = new Set<string>()
@@ -24,12 +25,16 @@ function collectPresets(program: Program | undefined): PresetEntry[] {
       for (const ex of day.exercises) {
         if (ex.weight.type === 'rm' || ex.weight.type === 'placeholder' || ex.weight.type === 'rpe') {
           const label = weightLabel(ex.weight)
-          // Skip "自选" entries — those are picked dynamically in the workout page
+          // Skip "自选" entries — picked dynamically in the workout page
           if (label === '自选') continue
-          const compoundKey = `${program.lift}:${ex.name}:${label}`
-          if (!seen.has(compoundKey)) {
-            seen.add(compoundKey)
-            entries.push({ lift: program.lift, exerciseName: ex.name, weightLabel: label, compoundKey })
+          // Split compound names like "弯举/引体向上/高位下拉" into individual items
+          const names = ex.name.split('/').map(s => s.trim())
+          for (const name of names) {
+            const compoundKey = `${program.lift}:${name}:${label}`
+            if (!seen.has(compoundKey)) {
+              seen.add(compoundKey)
+              entries.push({ lift: program.lift, exerciseName: name, weightLabel: label, compoundKey })
+            }
           }
         }
       }
