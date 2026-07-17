@@ -412,19 +412,22 @@ export default function WorkoutPage() {
   }
 
   const handleComplete = async () => {
-    // Clear auto-save after completion
+    // Read current state first
+    const currentSets = completedSets
+    const currentWeights = weightValues
+    const currentAmap = amapReps
+    // Clear auto-save
     localStorage.removeItem(sk('sets'))
     localStorage.removeItem(sk('weights'))
     localStorage.removeItem(sk('amap'))
-    // Reset local state so auto-save won't re-persist stale data
     setCompletedSets(new Map())
     setWeightValues(new Map())
     setAmapReps(new Map())
     setSessionRestored(false)
     const exerciseLogs: ExerciseLog[] = day.exercises.map((ex, i) => {
-      const actualWeight = inheritedWeights.get(i) ?? weightValues.get(i) ?? calcWeight(ex.weight, oneRM, settings.rounding) ?? 0
-      const setsCompleted = completedSets.get(i)?.size ?? 0
-      const amapVal = amapReps.get(i)
+      const actualWeight = inheritedWeights.get(i) ?? currentWeights.get(i) ?? calcWeight(ex.weight, oneRM, settings.rounding) ?? 0
+      const setsCompleted = currentSets.get(i)?.size ?? 0
+      const amapVal = currentAmap.get(i)
       return {
         name: localStorage.getItem(`_pick:${liftKey}:${ex.name}`) || ex.name,
         plannedWeight: ex.weight,
