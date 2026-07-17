@@ -301,7 +301,7 @@ export default function WorkoutPage() {
       if (rawA) setAmapReps(new Map(JSON.parse(rawA)))
     } catch {}
     setSessionRestored(true)
-  }, [state, program, day, sessionRestored])
+  }, [state, program, day, sessionRestored, liftKey, state?.currentWeek, state?.currentDay])
 
   // Load saved weight memories for this workout
   useEffect(() => {
@@ -324,7 +324,7 @@ export default function WorkoutPage() {
 
   // Auto-save workout state to localStorage whenever it changes
   useEffect(() => {
-    if (!state || !program) return
+    if (!state || !program || !day) return
     const setsArr: [number, number[]][] = []
     completedSets.forEach((s, k) => setsArr.push([k, [...s]]))
     localStorage.setItem(sk('sets'), JSON.stringify(setsArr))
