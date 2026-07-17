@@ -274,28 +274,34 @@ export default function WorkoutPage() {
   const day = week?.days.find((d) => d.dayNumber === state?.currentDay)
   const oneRM = getOneRM(settings, liftKey)
 
-  // Save/restore key generator (placed after state is defined!)
+  // Save/restore key generator
   const sk = (s: string) => saveKey(liftKey, program?.id || '', state?.currentWeek || 0, state?.currentDay || 0, s)
 
-  // Track completed sets, weights, AMAP — restored from localStorage using saveKey.
-  // We compute the key inside the initializer so it always uses the CURRENT (week, day).
-  const [completedSets, setCompletedSets] = useState<Map<number, Set<number>>>(() => {
-    const raw = localStorage.getItem(sk('sets'))
-    if (raw) try { const ret = new Map<number, Set<number>>(); for (const [k, v] of JSON.parse(raw)) ret.set(k, new Set(v)); return ret } catch {}
-    return new Map()
-  })
-  const [weightValues, setWeightValues] = useState<Map<number, number>>(() => {
-    const raw = localStorage.getItem(sk('weights'))
-    if (raw) try { return new Map(JSON.parse(raw)) } catch {}
-    return new Map()
-  })
-  const [amapReps, setAmapReps] = useState<Map<number, number>>(() => {
-    const raw = localStorage.getItem(sk('amap'))
-    if (raw) try { return new Map(JSON.parse(raw)) } catch {}
-    return new Map()
-  })
+  // Track completed sets, weights, AMAP — restored from localStorage AFTER state loads
+  const [completedSets, setCompletedSets] = useState<Map<number, Set<number>>>(new Map())
+  const [weightValues, setWeightValues] = useState<Map<number, number>>(new Map())
+  const [amapReps, setAmapReps] = useState<Map<number, number>>(new Map())
+  const [sessionRestored, setSessionRestored] = useState(false)
   // Loaded weight memories
   const [memoriesLoaded, setMemoriesLoaded] = useState(false)
+
+  // Restore saved session state once all data is ready
+  useEffect(() => {
+    if (!state || !program || !day || sessionRestored) return
+    try {
+      const raw = localStorage.getItem(sk('sets'))
+      if (raw) {
+        const m = new Map<number, Set<number>>()
+        for (const [k, v] of JSON.parse(raw)) m.set(k, new Set(v))
+        setCompletedSets(m)
+      }
+      const rawW = localStorage.getItem(sk('weights'))
+      if (rawW) setWeightValues(new Map(JSON.parse(rawW)))
+      const rawA = localStorage.getItem(sk('amap'))
+      if (rawA) setAmapReps(new Map(JSON.parse(rawA)))
+    } catch {}
+    setSessionRestored(true)
+  }, [state, program, day, sessionRestored])
 
   // Load saved weight memories for this workout
   useEffect(() => {
@@ -326,11 +332,12 @@ export default function WorkoutPage() {
     localStorage.setItem(sk('amap'), JSON.stringify([...amapReps]))
   }, [completedSets, weightValues, amapReps, state, program])
 
-  // Reset state when lift changes — also clear auto-save
+  // Reset state when lift changes — also clear auto-save and restore flag
   useEffect(() => {
     setCompletedSets(new Map())
     setWeightValues(new Map())
     setAmapReps(new Map())
+    setSessionRestored(false)
     setMemoriesLoaded(false)
   }, [liftKey, state?.programId, state?.currentWeek, state?.currentDay])
 
