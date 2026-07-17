@@ -324,7 +324,7 @@ export default function WorkoutPage() {
 
   // Auto-save workout state to localStorage whenever it changes
   useEffect(() => {
-    if (!state || !program || !day) return
+    if (!state || !program || !day || !sessionRestored) return
     const setsArr: [number, number[]][] = []
     completedSets.forEach((s, k) => setsArr.push([k, [...s]]))
     localStorage.setItem(sk('sets'), JSON.stringify(setsArr))
