@@ -1,18 +1,79 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProgramState } from '../hooks/useProgramState'
+import { useTrainingLog } from '../hooks/useTrainingLog'
 import { getProgramsByLift, getProgramById } from '../data/programs'
 import { LIFTS, LIFT_LABELS, LIFT_EMOJI } from '../types'
 import type { Lift, ProgramState } from '../types'
+
+function DayPicker({
+  state,
+  program,
+  historyDays,
+  onJump,
+  onClose,
+}: {
+  state: ProgramState
+  program: import('../types').Program
+  historyDays: Set<string>
+  onJump: (week: number, day: number) => void
+  onClose: () => void
+}) {
+  const weeks = program.weeks
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-slate-800 rounded-t-2xl p-6 max-w-md w-full max-h-[75vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">选择训练日</h3>
+          <button onClick={onClose} className="text-slate-400 text-2xl">&times;</button>
+        </div>
+        {weeks.map(w => {
+          const active = w.weekNumber === state.currentWeek
+          return (
+            <div key={w.weekNumber} className="mb-4">
+              <h4 className={`text-sm font-semibold mb-2 ${active ? 'text-amber-400' : 'text-slate-400'}`}>
+                Week {w.weekNumber}
+              </h4>
+              <div className="grid grid-cols-3 gap-2">
+                {w.days.map(d => {
+                  const current = w.weekNumber === state.currentWeek && d.dayNumber === state.currentDay
+                  const done = historyDays.has(`${w.weekNumber}-${d.dayNumber}`)
+                  return (
+                    <button
+                      key={`${w.weekNumber}-${d.dayNumber}`}
+                      onClick={() => { onJump(w.weekNumber, d.dayNumber); onClose() }}
+                      className={`p-3 rounded-lg text-sm font-medium ${
+                        current
+                          ? 'bg-amber-400 text-slate-900'
+                          : done
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      Day {d.dayNumber}
+                      {done && <span className="ml-1 text-xs">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function LiftCard({
   lift,
   state,
   onSelectProgram,
+  onJumpToDay,
 }: {
   lift: Lift
   state?: ProgramState
   onSelectProgram: () => void
+  onJumpToDay: () => void
 }) {
   const navigate = useNavigate()
   const program = state ? getProgramById(state.programId) : undefined
@@ -47,7 +108,7 @@ function LiftCard({
                 }}
               />
             </div>
-            <span className="text-xs text-slate-400 whitespace-nowrap">
+            <span className="text-xs text-slate-400 whitespace-nowrap cursor-pointer hover:text-amber-400" onClick={onJumpToDay}>
               W{state.currentWeek} · D{state.currentDay}
             </span>
           </div>
@@ -158,8 +219,17 @@ function ProgramSelector({
 }
 
 export default function HomePage() {
-  const { states, loaded, setProgram } = useProgramState()
+  const { states, loaded, setProgram, jumpToDay } = useProgramState()
   const [selectorLift, setSelectorLift] = useState<Lift | null>(null)
+  const [dayPicker, setDayPicker] = useState<{ lift: Lift; state: ProgramState } | null>(null)
+  // Load all training logs to find completed days
+  const { logs } = useTrainingLog()
+
+  // Compute set of "week-day" pairs that have training logs
+  const historyDays = new Set<string>()
+  for (const entry of logs) {
+    historyDays.add(`${entry.week}-${entry.day}`)
+  }
 
   if (!loaded) {
     return (
@@ -175,14 +245,19 @@ export default function HomePage() {
       <p className="text-slate-400 text-sm mb-6">选择动作，开始今天的训练</p>
 
       <div className="space-y-4">
-        {LIFTS.map((lift) => (
+        {LIFTS.map((lift) => {
+          const s = states[lift]
+          return (
           <LiftCard
             key={lift}
             lift={lift}
-            state={states[lift]}
+            state={s}
             onSelectProgram={() => setSelectorLift(lift)}
+            onJumpToDay={() => {
+              if (s) setDayPicker({ lift, state: s })
+            }}
           />
-        ))}
+        )})}
       </div>
 
       {selectorLift && (
@@ -195,6 +270,23 @@ export default function HomePage() {
           onClose={() => setSelectorLift(null)}
         />
       )}
+
+      {dayPicker && (() => {
+        const program = getProgramById(dayPicker.state.programId)
+        if (!program) return null
+        return (
+          <DayPicker
+            state={dayPicker.state}
+            program={program}
+            historyDays={historyDays}
+            onJump={(week, day) => {
+              jumpToDay(dayPicker.lift, week, day)
+              setDayPicker(null)
+            }}
+            onClose={() => setDayPicker(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

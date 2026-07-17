@@ -37,6 +37,14 @@ export function useProgramState(_lift?: Lift) {
     setStates((prev) => ({ ...prev, [l]: state }));
   }, []);
 
+  const jumpToDay = useCallback(async (l: Lift, week: number, day: number) => {
+    const current = states[l];
+    if (!current) return;
+    const next: ProgramState = { ...current, currentWeek: week, currentDay: day, completed: false };
+    await saveProgramState(next);
+    setStates((prev) => ({ ...prev, [l]: next }));
+  }, [states]);
+
   const advanceProgram = useCallback(async (l: Lift, program: Program) => {
     const current = states[l];
     if (!current) return;
@@ -75,6 +83,7 @@ export function useProgramState(_lift?: Lift) {
     getProgramForLift,
     setProgram,
     advanceProgram,
+    jumpToDay,
     reload: loadAll,
   };
 }
