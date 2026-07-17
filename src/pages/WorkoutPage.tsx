@@ -274,30 +274,25 @@ export default function WorkoutPage() {
   const day = week?.days.find((d) => d.dayNumber === state?.currentDay)
   const oneRM = getOneRM(settings, liftKey)
 
+  // Save/restore key generator (placed after state is defined!)
   const sk = (s: string) => saveKey(liftKey, program?.id || '', state?.currentWeek || 0, state?.currentDay || 0, s)
 
-  // Restore saved workout state from localStorage (auto-save between sessions)
-  const restoreState = <T,>(key: string, fallback: T): T => {
-    try {
-      const raw = localStorage.getItem(key)
-      return raw ? JSON.parse(raw) : fallback
-    } catch { return fallback }
-  }
-
-  // Track completed sets, weights, AMAP — restored from localStorage
+  // Track completed sets, weights, AMAP — restored from localStorage using saveKey.
+  // We compute the key inside the initializer so it always uses the CURRENT (week, day).
   const [completedSets, setCompletedSets] = useState<Map<number, Set<number>>>(() => {
-    const raw = restoreState<[number, number[]][]>(sk('sets'), [])
-    const m = new Map<number, Set<number>>()
-    for (const [k, v] of raw) m.set(k, new Set(v))
-    return m
+    const raw = localStorage.getItem(sk('sets'))
+    if (raw) try { const ret = new Map<number, Set<number>>(); for (const [k, v] of JSON.parse(raw)) ret.set(k, new Set(v)); return ret } catch {}
+    return new Map()
   })
   const [weightValues, setWeightValues] = useState<Map<number, number>>(() => {
-    const raw = restoreState<[number, number][]>(sk('weights'), [])
-    return new Map(raw)
+    const raw = localStorage.getItem(sk('weights'))
+    if (raw) try { return new Map(JSON.parse(raw)) } catch {}
+    return new Map()
   })
   const [amapReps, setAmapReps] = useState<Map<number, number>>(() => {
-    const raw = restoreState<[number, number][]>(sk('amap'), [])
-    return new Map(raw)
+    const raw = localStorage.getItem(sk('amap'))
+    if (raw) try { return new Map(JSON.parse(raw)) } catch {}
+    return new Map()
   })
   // Loaded weight memories
   const [memoriesLoaded, setMemoriesLoaded] = useState(false)
@@ -335,6 +330,7 @@ export default function WorkoutPage() {
   useEffect(() => {
     setCompletedSets(new Map())
     setWeightValues(new Map())
+    setAmapReps(new Map())
     setMemoriesLoaded(false)
   }, [liftKey, state?.programId, state?.currentWeek, state?.currentDay])
 
