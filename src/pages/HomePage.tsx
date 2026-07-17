@@ -173,26 +173,37 @@ function LiftCard({
   )
 }
 
-function ProgramSelector({
-  lift,
-  onSelect,
-  onClose,
-}: {
-  lift: Lift
-  onSelect: (programId: string) => void
+function DayPickerWrapped({ dayPicker, historyDays, jumpToDay, onClose }: {
+  dayPicker: { lift: Lift; state: ProgramState }
+  historyDays: Set<string>
+  jumpToDay: (l: Lift, w: number, d: number) => void
   onClose: () => void
 }) {
-  const programs = getProgramsByLift(lift)
+  const program = getProgramById(dayPicker.state.programId)
+  if (!program) return null
+  return (
+    <DayPicker
+      state={dayPicker.state}
+      program={program}
+      historyDays={historyDays}
+      onJump={(w, d) => { jumpToDay(dayPicker.lift, w, d); onClose() }}
+      onClose={onClose}
+    />
+  )
+}
 
+function ProgramSelectorWrapped({ selectorLift, setProgram, onClose }: {
+  selectorLift: Lift
+  setProgram: (l: Lift, id: string) => void
+  onClose: () => void
+}) {
+  const programs = getProgramsByLift(selectorLift)
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div
-        className="bg-slate-800 rounded-t-2xl p-6 max-w-md w-full max-h-[60vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="bg-slate-800 rounded-t-2xl p-6 max-w-md w-full max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">
-            {LIFT_EMOJI[lift]} {LIFT_LABELS[lift]} 计划
+            {LIFT_EMOJI[selectorLift]} {LIFT_LABELS[selectorLift]} 计划
           </h3>
           <button onClick={onClose} className="text-slate-400 text-2xl">&times;</button>
         </div>
@@ -200,7 +211,7 @@ function ProgramSelector({
           {programs.map((p) => (
             <button
               key={p.id}
-              onClick={() => onSelect(p.id)}
+              onClick={() => { setProgram(selectorLift, p.id); onClose() }}
               className="w-full bg-slate-700 hover:bg-slate-600 text-left p-4 rounded-lg flex justify-between items-center"
             >
               <div>
@@ -261,32 +272,21 @@ export default function HomePage() {
       </div>
 
       {selectorLift && (
-        <ProgramSelector
-          lift={selectorLift}
-          onSelect={(programId) => {
-            setProgram(selectorLift, programId)
-            setSelectorLift(null)
-          }}
+        <ProgramSelectorWrapped
+          selectorLift={selectorLift}
+          setProgram={setProgram}
           onClose={() => setSelectorLift(null)}
         />
       )}
 
-      {dayPicker && (() => {
-        const program = getProgramById(dayPicker.state.programId)
-        if (!program) return null
-        return (
-          <DayPicker
-            state={dayPicker.state}
-            program={program}
-            historyDays={historyDays}
-            onJump={(week, day) => {
-              jumpToDay(dayPicker.lift, week, day)
-              setDayPicker(null)
-            }}
-            onClose={() => setDayPicker(null)}
-          />
-        )
-      })()}
+      {dayPicker && (
+        <DayPickerWrapped
+          dayPicker={dayPicker}
+          historyDays={historyDays}
+          jumpToDay={jumpToDay}
+          onClose={() => setDayPicker(null)}
+        />
+      )}
     </div>
   )
 }
