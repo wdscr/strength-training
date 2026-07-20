@@ -332,8 +332,12 @@ export default function WorkoutPage() {
     localStorage.setItem(sk('amap'), JSON.stringify([...amapReps]))
   }, [completedSets, weightValues, amapReps, state, program])
 
-  // Reset state when lift changes — also clear auto-save and restore flag
+  // Reset state when lift/W/D changes
   useEffect(() => {
+    // Clear old session data so it doesn't bleed into new week/day
+    localStorage.removeItem(sk('sets'))
+    localStorage.removeItem(sk('weights'))
+    localStorage.removeItem(sk('amap'))
     setCompletedSets(new Map())
     setWeightValues(new Map())
     setAmapReps(new Map())
