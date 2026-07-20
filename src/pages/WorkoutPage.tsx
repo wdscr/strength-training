@@ -420,10 +420,11 @@ export default function WorkoutPage() {
     const currentSets = completedSets
     const currentWeights = weightValues
     const currentAmap = amapReps
-    // Clear auto-save
-    localStorage.removeItem(sk('sets'))
-    localStorage.removeItem(sk('weights'))
-    localStorage.removeItem(sk('amap'))
+    // Clear ALL auto-save entries for this lift/program
+    const prefix = `wk:${liftKey}:${program.id}:`
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith(prefix)) localStorage.removeItem(k)
+    })
     setCompletedSets(new Map())
     setWeightValues(new Map())
     setAmapReps(new Map())
