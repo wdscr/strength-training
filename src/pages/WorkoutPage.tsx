@@ -276,18 +276,42 @@ export default function WorkoutPage() {
 
   // Save/restore key generator
   const sk = (s: string) => saveKey(liftKey, program?.id || '', state?.currentWeek || 0, state?.currentDay || 0, s)
+  const sessionId = state && program && day
+    ? `${liftKey}:${program.id}:${state.currentWeek}:${state.currentDay}`
+    : null
 
   // Track completed sets, weights, AMAP — restored from localStorage AFTER state loads
   const [completedSets, setCompletedSets] = useState<Map<number, Set<number>>>(new Map())
   const [weightValues, setWeightValues] = useState<Map<number, number>>(new Map())
   const [amapReps, setAmapReps] = useState<Map<number, number>>(new Map())
   const [sessionRestored, setSessionRestored] = useState(false)
-  // Loaded weight memories
   const [memoriesLoaded, setMemoriesLoaded] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const [completionError, setCompletionError] = useState<string | null>(null)
+  const activeSessionRef = useRef<string | null>(null)
+  const memoryReadyForRef = useRef<string | null>(null)
+  const restoredSessionRef = useRef<string | null>(null)
+  const completingRef = useRef(false)
 
-  // Load saved weight memories for this workout
+  // Reset in-memory state when the active workout session changes. Keep its
+  // localStorage draft so it can be restored when the user returns.
   useEffect(() => {
-    if (!day || memoriesLoaded) return
+    if (activeSessionRef.current === sessionId) return
+    activeSessionRef.current = sessionId
+    memoryReadyForRef.current = null
+    restoredSessionRef.current = null
+    setCompletedSets(new Map())
+    setWeightValues(new Map())
+    setAmapReps(new Map())
+    setSessionRestored(false)
+    setMemoriesLoaded(false)
+    setCompletionError(null)
+  }, [sessionId])
+
+  // Load saved weight memories for this workout.
+  useEffect(() => {
+    if (!sessionId || !day) return
+    let cancelled = false
     const load = async () => {
       const newWeights = new Map<number, number>()
       for (let i = 0; i < day.exercises.length; i++) {
@@ -295,18 +319,21 @@ export default function WorkoutPage() {
         if (ex.weight.type === 'rm' || ex.weight.type === 'placeholder' || ex.weight.type === 'rpe') {
           const label = weightLabel(ex.weight)
           const mem = await getMemoryForExercise(liftKey, ex.name, label)
-          if (mem !== undefined) newWeights.set(i, mem)
+          if (!cancelled && mem !== undefined) newWeights.set(i, mem)
         }
       }
+      if (cancelled || activeSessionRef.current !== sessionId) return
       setWeightValues(newWeights)
+      memoryReadyForRef.current = sessionId
       setMemoriesLoaded(true)
     }
     load()
-  }, [day, liftKey, getMemoryForExercise, memoriesLoaded])
+    return () => { cancelled = true }
+  }, [sessionId, day, liftKey, getMemoryForExercise])
 
-  // Restore saved session state AFTER weight memories are loaded
+  // Restore the current session only after its own memories are ready.
   useEffect(() => {
-    if (!state || !program || !day || !memoriesLoaded || sessionRestored) return
+    if (!sessionId || !state || !program || !day || memoryReadyForRef.current !== sessionId || restoredSessionRef.current === sessionId) return
     try {
       const raw = localStorage.getItem(sk('sets'))
       if (raw) {
@@ -319,31 +346,19 @@ export default function WorkoutPage() {
       const rawA = localStorage.getItem(sk('amap'))
       if (rawA) setAmapReps(new Map(JSON.parse(rawA)))
     } catch {}
+    restoredSessionRef.current = sessionId
     setSessionRestored(true)
-  }, [state, program, day, memoriesLoaded, sessionRestored, liftKey, state?.currentWeek, state?.currentDay])
+  }, [sessionId, state, program, day, liftKey])
 
-  // Auto-save workout state to localStorage whenever it changes
+  // Auto-save only after this exact session has been restored.
   useEffect(() => {
-    if (!state || !program || !day || !sessionRestored) return
+    if (!sessionId || !sessionRestored || restoredSessionRef.current !== sessionId || completingRef.current) return
     const setsArr: [number, number[]][] = []
     completedSets.forEach((s, k) => setsArr.push([k, [...s]]))
     localStorage.setItem(sk('sets'), JSON.stringify(setsArr))
     localStorage.setItem(sk('weights'), JSON.stringify([...weightValues]))
     localStorage.setItem(sk('amap'), JSON.stringify([...amapReps]))
-  }, [completedSets, weightValues, amapReps, state, program])
-
-  // Reset state when lift/W/D changes
-  useEffect(() => {
-    // Clear old session data so it doesn't bleed into new week/day
-    localStorage.removeItem(sk('sets'))
-    localStorage.removeItem(sk('weights'))
-    localStorage.removeItem(sk('amap'))
-    setCompletedSets(new Map())
-    setWeightValues(new Map())
-    setAmapReps(new Map())
-    setSessionRestored(false)
-    setMemoriesLoaded(false)
-  }, [liftKey, state?.programId, state?.currentWeek, state?.currentDay])
+  }, [completedSets, weightValues, amapReps, sessionId, sessionRestored, liftKey])
 
   if (!settingsLoaded || !statesLoaded || !memoriesLoaded) {
     return (
@@ -416,19 +431,16 @@ export default function WorkoutPage() {
   }
 
   const handleComplete = async () => {
-    // Read current state first
+    if (completingRef.current || !sessionId) return
+    completingRef.current = true
+    setCompleting(true)
+    setCompletionError(null)
+
+    // Snapshot everything needed before any cleanup or navigation.
     const currentSets = completedSets
     const currentWeights = weightValues
     const currentAmap = amapReps
-    // Clear ALL auto-save entries for this lift/program
-    const prefix = `wk:${liftKey}:${program.id}:`
-    Object.keys(localStorage).forEach(k => {
-      if (k.startsWith(prefix)) localStorage.removeItem(k)
-    })
-    setCompletedSets(new Map())
-    setWeightValues(new Map())
-    setAmapReps(new Map())
-    setSessionRestored(false)
+    const currentSessionKeys = [sk('sets'), sk('weights'), sk('amap')]
     const exerciseLogs: ExerciseLog[] = day.exercises.map((ex, i) => {
       const actualWeight = inheritedWeights.get(i) ?? currentWeights.get(i) ?? calcWeight(ex.weight, oneRM, settings.rounding) ?? 0
       const setsCompleted = currentSets.get(i)?.size ?? 0
@@ -456,9 +468,24 @@ export default function WorkoutPage() {
       exercises: exerciseLogs,
     }
 
-    await addTrainingLog(entry)
-    await advanceProgram(liftKey, program)
-    navigate('/')
+    try {
+      await addTrainingLog(entry)
+      await advanceProgram(liftKey, program)
+
+      // Only the successfully completed workout session is disposable. Keep
+      // drafts from other days so they can still be resumed later.
+      currentSessionKeys.forEach((key) => localStorage.removeItem(key))
+      setCompletedSets(new Map())
+      setWeightValues(new Map())
+      setAmapReps(new Map())
+      setSessionRestored(false)
+      navigate('/')
+    } catch (error) {
+      setCompletionError(error instanceof Error ? error.message : '保存训练记录失败，请重试')
+    } finally {
+      completingRef.current = false
+      setCompleting(false)
+    }
   }
 
   return (
@@ -546,10 +573,14 @@ export default function WorkoutPage() {
       <div className="mt-8 mb-8">
         <button
           onClick={handleComplete}
-          className="w-full bg-green-500 text-white font-bold py-4 rounded-xl text-lg hover:bg-green-400 active:scale-95 transition-all shadow-lg shadow-green-500/20"
+          disabled={completing}
+          className="w-full bg-green-500 text-white font-bold py-4 rounded-xl text-lg hover:bg-green-400 active:scale-95 transition-all shadow-lg shadow-green-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          ✓ 完成训练
+          {completing ? '保存中...' : '✓ 完成训练'}
         </button>
+        {completionError && (
+          <p className="text-sm text-red-400 text-center mt-2">{completionError}</p>
+        )}
         <p className="text-xs text-slate-500 text-center mt-2">
           完成后自动推进到下一个训练日
         </p>
