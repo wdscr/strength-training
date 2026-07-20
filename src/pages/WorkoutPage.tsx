@@ -286,6 +286,7 @@ export default function WorkoutPage() {
   const [amapReps, setAmapReps] = useState<Map<number, number>>(new Map())
   const [sessionRestored, setSessionRestored] = useState(false)
   const [memoriesLoaded, setMemoriesLoaded] = useState(false)
+  const [memoryReadyFor, setMemoryReadyFor] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
   const [completionError, setCompletionError] = useState<string | null>(null)
   const activeSessionRef = useRef<string | null>(null)
@@ -300,6 +301,7 @@ export default function WorkoutPage() {
     activeSessionRef.current = sessionId
     memoryReadyForRef.current = null
     restoredSessionRef.current = null
+    setMemoryReadyFor(null)
     setCompletedSets(new Map())
     setWeightValues(new Map())
     setAmapReps(new Map())
@@ -325,6 +327,7 @@ export default function WorkoutPage() {
       if (cancelled || activeSessionRef.current !== sessionId) return
       setWeightValues(newWeights)
       memoryReadyForRef.current = sessionId
+      setMemoryReadyFor(sessionId)
       setMemoriesLoaded(true)
     }
     load()
@@ -333,7 +336,7 @@ export default function WorkoutPage() {
 
   // Restore the current session only after its own memories are ready.
   useEffect(() => {
-    if (!sessionId || !state || !program || !day || memoryReadyForRef.current !== sessionId || restoredSessionRef.current === sessionId) return
+    if (!sessionId || !state || !program || !day || memoryReadyFor !== sessionId || memoryReadyForRef.current !== sessionId || restoredSessionRef.current === sessionId) return
     try {
       const raw = localStorage.getItem(sk('sets'))
       if (raw) {
@@ -348,7 +351,7 @@ export default function WorkoutPage() {
     } catch {}
     restoredSessionRef.current = sessionId
     setSessionRestored(true)
-  }, [sessionId, state, program, day, liftKey])
+  }, [sessionId, state, program, day, liftKey, memoryReadyFor])
 
   // Auto-save only after this exact session has been restored.
   useEffect(() => {
