@@ -24,7 +24,8 @@ export default defineConfig({
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: '/strength-training/',
+        scope: '/strength-training/',
         icons: [
           {
             src: 'pwa-192x192.png',
